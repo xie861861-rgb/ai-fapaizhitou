@@ -1,0 +1,7 @@
+{
+  "name": "AI法拍智投",
+  "description": "基于AI的司法拍卖房产深度评估与投资决策平台",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
