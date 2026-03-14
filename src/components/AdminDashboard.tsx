@@ -1,85 +1,158 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Settings, Database, Activity, MessageSquare, Shield, Search, ChevronRight, Save, Play, RefreshCw, AlertCircle, CheckCircle2, Globe } from 'lucide-react';
+import { Settings, Database, Activity, MessageSquare, Shield, Search, ChevronRight, Save, Play, RefreshCw, AlertCircle, CheckCircle2, Globe, Users, FileText, TrendingUp, Package } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { api, Property, Analysis } from '../lib/api';
 
-export const AdminDashboard: React.FC = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+// 登录表单组件
+const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'agents' | 'rag' | 'stats' | 'llm'>('agents');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    // 简单验证 - 实际应该调用后端API
     if (username === 'admin' && password === 'admin123') {
-      setIsLoggedIn(true);
-      setError('');
+      onSuccess();
     } else {
       setError('用户名或密码错误');
     }
   };
 
-  if (!isLoggedIn) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-background-dark p-6">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-8"
-        >
-          <div className="text-center space-y-2">
-            <div className="size-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto text-primary">
-              <Shield size={32} />
+  return (
+    <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-background-dark p-6">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-8"
+      >
+        <div className="text-center space-y-2">
+          <div className="size-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto text-primary">
+            <Shield size={32} />
+          </div>
+          <h2 className="text-2xl font-black">管理后台登录</h2>
+          <p className="text-slate-500 text-sm">请输入管理员凭据以访问系统中枢</p>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">用户名</label>
+              <input 
+                type="text" 
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary transition-all"
+                placeholder="admin"
+              />
             </div>
-            <h2 className="text-2xl font-black">管理后台登录</h2>
-            <p className="text-slate-500 text-sm">请输入管理员凭据以访问系统中枢</p>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">密码</label>
+              <input 
+                type="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary transition-all"
+                placeholder="••••••••"
+              />
+            </div>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">用户名</label>
-                <input 
-                  type="text" 
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary transition-all"
-                  placeholder="admin"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">密码</label>
-                <input 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary transition-all"
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
-
-            {error && (
-              <motion.p 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-xs text-rose-500 font-bold text-center"
-              >
-                {error}
-              </motion.p>
-            )}
-
-            <button 
-              type="submit"
-              className="w-full bg-primary text-white py-4 rounded-xl font-black shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
+          {error && (
+            <motion.p 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-xs text-rose-500 font-bold text-center"
             >
-              立即登录
-            </button>
-          </form>
-        </motion.div>
+              {error}
+            </motion.p>
+          )}
+
+          <button 
+            type="submit"
+            className="w-full bg-primary text-white py-4 rounded-xl font-black shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
+          >
+            立即登录
+          </button>
+        </form>
+        
+        <p className="text-center text-xs text-slate-400">
+          测试账号: admin / admin123
+        </p>
+      </motion.div>
+    </div>
+  );
+};
+
+// 统计卡片组件
+const StatCard = ({ title, value, icon: Icon, trend, color }: { 
+  title: string; 
+  value: string | number; 
+  icon: any; 
+  trend?: string;
+  color?: string;
+}) => (
+  <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800">
+    <div className="flex items-center justify-between mb-4">
+      <div className={cn("size-12 rounded-2xl flex items-center justify-center", color || 'bg-primary/10')}>
+        <Icon size={24} className={color?.replace('bg-', 'text-') || 'text-primary'} />
       </div>
-    );
+      {trend && (
+        <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">
+          {trend}
+        </span>
+      )}
+    </div>
+    <p className="text-3xl font-black">{value}</p>
+    <p className="text-sm text-slate-500 font-bold">{title}</p>
+  </div>
+);
+
+export const AdminDashboard: React.FC = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'properties' | 'users' | 'analyses'>('overview');
+  const [stats, setStats] = useState({
+    totalProperties: 0,
+    totalUsers: 0,
+    totalAnalyses: 0,
+    activeUsers: 0,
+  });
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [analyses, setAnalyses] = useState<Analysis[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // 加载数据
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [props, analysesData] = await Promise.all([
+        api.getProperties({ limit: 100 }),
+        api.getAnalysisHistory(),
+      ]);
+      setProperties(props);
+      setAnalyses(analysesData);
+      setStats({
+        totalProperties: props.length,
+        totalUsers: 1, // 简化处理
+        totalAnalyses: analysesData.length,
+        activeUsers: 1,
+      });
+    } catch (err) {
+      console.error('Failed to load data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      loadData();
+    }
+  }, [isLoggedIn]);
+
+  if (!isLoggedIn) {
+    return <LoginForm onSuccess={() => setIsLoggedIn(true)} />;
   }
 
   return (
@@ -88,276 +161,231 @@ export const AdminDashboard: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-black">管理后台 (Admin Dashboard)</h2>
-            <p className="text-slate-500">支撑业务运营、模型调优和积分商业化落地的“神经中枢”</p>
+            <h2 className="text-3xl font-black">管理后台</h2>
+            <p className="text-slate-500">支撑业务运营、模型调优和积分商业化落地的"神经中枢"</p>
           </div>
           <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-bold">
-              <RefreshCw size={16} /> 刷新缓存
+            <button 
+              onClick={loadData}
+              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+            >
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> 刷新
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold shadow-lg shadow-primary/20">
-              <Save size={16} /> 保存全局配置
+            <button 
+              onClick={() => setIsLoggedIn(false)}
+              className="flex items-center gap-2 px-4 py-2 bg-rose-500 text-white rounded-lg text-sm font-bold hover:bg-rose-600 transition-all"
+            >
+              退出登录
             </button>
           </div>
         </div>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Tab Navigation */}
+        <div className="flex gap-2 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 w-fit">
           {[
-            { label: '今日解析量', value: '1,284', change: '+12%', icon: <Activity className="text-blue-500" /> },
-            { label: '研判准确率', value: '98.4%', change: '+0.5%', icon: <Shield className="text-green-500" /> },
-            { label: '积分发放量', value: '45,200', change: '+8%', icon: <Database className="text-amber-500" /> },
-            { label: '成交预测偏离度', value: '≤ 8.2%', change: '-1.2%', icon: <Activity className="text-rose-500" /> },
-          ].map((stat, i) => (
-            <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="size-10 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center">
-                  {stat.icon}
-                </div>
-                <span className={cn(
-                  "text-xs font-bold",
-                  stat.change.startsWith('+') ? "text-green-500" : "text-rose-500"
-                )}>
-                  {stat.change}
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">{stat.label}</p>
-              <p className="text-2xl font-black">{stat.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Main Content Tabs */}
-        <div className="flex gap-8 border-b border-slate-200 dark:border-slate-800">
-          {[
-            { id: 'agents', label: '智能体编排 (MCP)', icon: <Settings size={18} /> },
-            { id: 'llm', label: '大模型与 API 设置', icon: <Globe size={18} /> },
-            { id: 'rag', label: '法拍知识库 (RAG)', icon: <Database size={18} /> },
-            { id: 'stats', label: '运营与监控', icon: <Activity size={18} /> },
-          ].map((tab) => (
+            { id: 'overview', label: '数据概览', icon: TrendingUp },
+            { id: 'properties', label: '房产管理', icon: Package },
+            { id: 'users', label: '用户管理', icon: Users },
+            { id: 'analyses', label: '分析记录', icon: FileText },
+          ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
               className={cn(
-                "pb-4 flex items-center gap-2 text-sm font-bold transition-all relative",
-                activeTab === tab.id ? "text-primary" : "text-slate-400 hover:text-slate-600"
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all",
+                activeTab === tab.id 
+                  ? "bg-primary text-white shadow-lg shadow-primary/20" 
+                  : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
               )}
             >
-              {tab.icon}
+              <tab.icon size={18} />
               {tab.label}
-              {activeTab === tab.id && (
-                <motion.div layoutId="adminTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-              )}
             </button>
           ))}
         </div>
 
-        <div className="min-h-[500px]">
-          {activeTab === 'llm' && (
-            <div className="space-y-8">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-6">
-                  <h4 className="font-bold flex items-center gap-2">
-                    <Globe className="text-primary" size={18} />
-                    大模型厂商配置 (主/备切换)
-                  </h4>
-                  <div className="space-y-4">
-                    {[
-                      { name: 'GPT-4o (主研判)', provider: 'OpenAI', status: 'Active', latency: '1.2s' },
-                      { name: 'DeepSeek-V3 (备选/低成本)', provider: 'DeepSeek', status: 'Active', latency: '0.8s' },
-                      { name: 'Qwen-Max (国内增强)', provider: 'Alibaba', status: 'Standby', latency: '0.9s' },
-                      { name: 'Baichuan-4 (备选)', provider: 'Baichuan', status: 'Standby', latency: '1.1s' },
-                    ].map((model, i) => (
-                      <div key={i} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <div className="flex items-center gap-3">
-                          <div className="size-8 bg-white dark:bg-slate-900 rounded-lg flex items-center justify-center text-xs font-bold border border-slate-200 dark:border-slate-700">
-                            {model.provider[0]}
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold">{model.name}</p>
-                            <p className="text-[10px] text-slate-400">{model.provider} • 延迟: {model.latency}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className={cn(
-                            "text-[10px] font-bold px-2 py-0.5 rounded",
-                            model.status === 'Active' ? "bg-green-500/10 text-green-500" : "bg-slate-200 dark:bg-slate-700 text-slate-500"
-                          )}>
-                            {model.status}
-                          </span>
-                          <button className="text-[10px] font-bold text-primary">配置 Key</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-6">
-                  <h4 className="font-bold flex items-center gap-2">
-                    <Settings className="text-primary" size={18} />
-                    API 工具与 Skill 管理
-                  </h4>
-                  <div className="space-y-4">
-                    {[
-                      { name: 'OCR 文字识别', type: 'Vision', usage: '84%' },
-                      { name: '网页爬虫 (阿里/京东)', type: 'Crawler', usage: '92%' },
-                      { name: '银行估值计算器', type: 'Tool', usage: '45%' },
-                      { name: '高德地图 API', type: 'LBS', usage: '67%' },
-                    ].map((tool, i) => (
-                      <div key={i} className="space-y-2">
-                        <div className="flex justify-between text-xs">
-                          <span className="font-bold">{tool.name}</span>
-                          <span className="text-slate-400">{tool.usage} 额度已用</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                          <div className="h-full bg-primary" style={{ width: tool.usage }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <button className="w-full py-3 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-slate-400 text-xs font-bold hover:border-primary/50 hover:text-primary transition-all">
-                    + 添加新 API 插件
-                  </button>
-                </div>
-              </div>
+        {/* Overview Tab */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* Stats Grid */}
+            <div className="grid md:grid-cols-4 gap-6">
+              <StatCard 
+                title="房产总数" 
+                value={stats.totalProperties} 
+                icon={Package} 
+                trend="+12%"
+                color="bg-blue-500/10 text-blue-500"
+              />
+              <StatCard 
+                title="注册用户" 
+                value={stats.totalUsers} 
+                icon={Users} 
+                color="bg-purple-500/10 text-purple-500"
+              />
+              <StatCard 
+                title="分析次数" 
+                value={stats.totalAnalyses} 
+                icon={Activity} 
+                color="bg-emerald-500/10 text-emerald-500"
+              />
+              <StatCard 
+                title="活跃用户" 
+                value={stats.activeUsers} 
+                icon={TrendingUp} 
+                color="bg-amber-500/10 text-amber-500"
+              />
             </div>
-          )}
-          {activeTab === 'agents' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1 space-y-4">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">子智能体列表</h3>
-                {[
-                  'PDF 解析专家',
-                  '链接抓取专家',
-                  '风险研判专家',
-                  '估值测算专家',
-                  '竞拍辅助专家',
-                  '税费测算专家'
-                ].map((agent, i) => (
-                  <div key={i} className={cn(
-                    "p-4 rounded-xl border flex items-center justify-between cursor-pointer transition-all",
-                    i === 2 ? "bg-primary/5 border-primary text-primary shadow-lg shadow-primary/5" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-primary/30"
-                  )}>
-                    <div className="flex items-center gap-3">
-                      <div className={cn("size-2 rounded-full", i === 2 ? "bg-primary" : "bg-slate-300")} />
-                      <span className="text-sm font-bold">{agent}</span>
-                    </div>
-                    <ChevronRight size={16} />
-                  </div>
-                ))}
+
+            {/* Recent Analyses */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+              <div className="p-6 border-b border-slate-200 dark:border-slate-800">
+                <h3 className="text-lg font-bold">最近分析记录</h3>
               </div>
-              
-              <div className="lg:col-span-2 space-y-6">
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold">风险研判专家 - System Prompt (v2.4.1)</h4>
-                    <div className="flex gap-2">
-                      <span className="bg-green-500/10 text-green-500 text-[10px] font-bold px-2 py-1 rounded">已发布</span>
-                      <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-bold px-2 py-1 rounded">灰度 20%</span>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">提示词编辑器</label>
-                    <textarea 
-                      className="w-full h-64 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl p-4 font-mono text-sm focus:ring-primary"
-                      defaultValue={`# Role: 风险研判专家
-# Task: 评估法拍房过户与腾退可行性
-
-## Input Variables:
-- {pdf_data}: PDF 结构化解析结果
-- {link_data}: 网页抓取实时数据
-
-## Logic:
-1. 分析是否存在“轮候查封”或“多重抵押”
-2. 评估“带租拍卖”对腾退的影响
-3. 输出 1-5 星难度评级...`}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex gap-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500">Temperature:</span>
-                        <input type="range" className="w-24 accent-primary" defaultValue="30" />
-                        <span className="text-xs font-bold">0.3</span>
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {analyses.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400">暂无分析记录</div>
+                ) : (
+                  analyses.slice(0, 5).map((analysis, idx) => (
+                    <div key={idx} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <div>
+                        <p className="font-bold">房产 ID: {analysis.property_id}</p>
+                        <p className="text-sm text-slate-500">AI预测价格: ¥{(analysis.ai_predicted_price / 10000).toFixed(0)}万</p>
                       </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <button className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700">测试运行</button>
-                      <button className="px-6 py-2 bg-primary text-white rounded-lg text-sm font-bold">发布新版本</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'rag' && (
-            <div className="space-y-8">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold">业务知识库 (RAG) 管理</h3>
-                <button className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2">
-                  <Play size={14} /> 重新索引全库
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                  <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
-                    <span className="text-sm font-bold">政策法规库</span>
-                    <button className="text-xs text-primary font-bold">+ 上传文档</button>
-                  </div>
-                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {[
-                      { name: '2024上海法拍限购政策汇总.pdf', size: '1.2MB', status: '已向量化' },
-                      { name: '最高法院关于法拍腾退的执行惯例.docx', size: '450KB', status: '已向量化' },
-                      { name: '各省市契税税率对照表_v2.xlsx', size: '89KB', status: '待更新' },
-                    ].map((doc, i) => (
-                      <div key={i} className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Database size={16} className="text-slate-400" />
-                          <div>
-                            <p className="text-sm font-medium">{doc.name}</p>
-                            <p className="text-[10px] text-slate-400">{doc.size}</p>
-                          </div>
-                        </div>
+                      <div className="text-right">
                         <span className={cn(
-                          "text-[10px] font-bold px-2 py-0.5 rounded",
-                          doc.status === '已向量化' ? "bg-green-500/10 text-green-500" : "bg-amber-500/10 text-amber-500"
+                          "text-xs font-bold px-2 py-1 rounded-full",
+                          analysis.risk_level === 'low' ? "bg-emerald-500/10 text-emerald-500" :
+                          analysis.risk_level === 'medium' ? "bg-amber-500/10 text-amber-500" :
+                          "bg-rose-500/10 text-rose-500"
                         )}>
-                          {doc.status}
+                          风险: {analysis.risk_level}
                         </span>
+                        <p className="text-xs text-slate-400 mt-1">{new Date(analysis.created_at).toLocaleDateString()}</p>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-6">
-                  <h4 className="font-bold flex items-center gap-2">
-                    <AlertCircle className="text-rose-500" size={18} />
-                    Bad Case 标注队列
-                  </h4>
-                  <div className="space-y-4">
-                    {[1, 2].map((i) => (
-                      <div key={i} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">用户反馈：估值偏高</span>
-                          <span className="text-[10px] text-slate-400">2024.05.12 10:20</span>
-                        </div>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 italic">“AI 预测成交价 1200万，但该小区上周刚成交一套同户型仅 1050万。”</p>
-                        <div className="flex justify-end gap-2">
-                          <button className="text-[10px] font-bold text-primary hover:underline">进入标注界面</button>
-                          <button className="text-[10px] font-bold text-slate-400 hover:text-slate-600">忽略</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* Properties Tab */}
+        {activeTab === 'properties' && (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <h3 className="text-lg font-bold">房产管理</h3>
+              <button className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-all">
+                添加房产
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 dark:bg-slate-800/50">
+                  <tr>
+                    <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">ID</th>
+                    <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">标题</th>
+                    <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">价格</th>
+                    <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">状态</th>
+                    <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">风险</th>
+                    <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {properties.map((property) => (
+                    <tr key={property.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td className="p-4 font-bold">{property.id}</td>
+                      <td className="p-4">
+                        <p className="font-bold truncate max-w-xs">{property.title}</p>
+                        <p className="text-xs text-slate-400">{property.location}</p>
+                      </td>
+                      <td className="p-4">
+                        <p className="font-bold text-primary">¥{(property.starting_price / 10000).toFixed(0)}万</p>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-xs font-bold px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-500">
+                          {property.status}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className={cn(
+                          "text-xs font-bold px-2 py-1 rounded-full",
+                          property.risk_level === 'low' ? "bg-emerald-500/10 text-emerald-500" :
+                          property.risk_level === 'medium' ? "bg-amber-500/10 text-amber-500" :
+                          "bg-rose-500/10 text-rose-500"
+                        )}>
+                          {property.risk_level}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <button className="text-primary text-sm font-bold hover:underline">
+                          编辑
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Users Tab */}
+        {activeTab === 'users' && (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center">
+            <Users size={48} className="mx-auto text-slate-300 mb-4" />
+            <h3 className="text-lg font-bold mb-2">用户管理</h3>
+            <p className="text-slate-500">用户管理功能开发中...</p>
+          </div>
+        )}
+
+        {/* Analyses Tab */}
+        {activeTab === 'analyses' && (
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="text-lg font-bold">分析记录</h3>
+            </div>
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {analyses.length === 0 ? (
+                <div className="p-8 text-center text-slate-400">暂无分析记录</div>
+              ) : (
+                analyses.map((analysis, idx) => (
+                  <div key={idx} className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-bold">房产 ID: {analysis.property_id}</span>
+                      <span className={cn(
+                        "text-xs font-bold px-2 py-1 rounded-full",
+                        analysis.risk_level === 'low' ? "bg-emerald-500/10 text-emerald-500" :
+                        analysis.risk_level === 'medium' ? "bg-amber-500/10 text-amber-500" :
+                        "bg-rose-500/10 text-rose-500"
+                      )}>
+                        {analysis.risk_level}
+                      </span>
+                    </div>
+                    <div className="grid md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-slate-400">AI预测价格</p>
+                        <p className="font-bold">¥{(analysis.ai_predicted_price / 10000).toFixed(0)}万</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400">投资评分</p>
+                        <p className="font-bold">{analysis.investment_rating}/5</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400">风险因素</p>
+                        <p className="font-bold">{analysis.risk_factors?.length || 0} 项</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400">分析时间</p>
+                        <p className="font-bold">{new Date(analysis.created_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
