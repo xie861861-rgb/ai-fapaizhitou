@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Settings, Database, Activity, MessageSquare, Shield, Search, ChevronRight, Save, Play, RefreshCw, AlertCircle, CheckCircle2, Globe, Users, FileText, TrendingUp, Package } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { api, Property, Analysis } from '../lib/api';
+import { api, Property, Analysis, User } from '../lib/api';
 
 // 登录表单组件
 const LoginForm = ({ onSuccess }: { onSuccess: () => void }) => {
@@ -119,6 +119,7 @@ export const AdminDashboard: React.FC = () => {
     activeUsers: 0,
   });
   const [properties, setProperties] = useState<Property[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -126,17 +127,19 @@ export const AdminDashboard: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [props, analysesData] = await Promise.all([
+      const [props, analysesData, usersData] = await Promise.all([
         api.getProperties({ limit: 100 }),
         api.getAnalysisHistory(),
+        api.adminGetUsers().catch(() => []), // 可能需要管理员权限
       ]);
       setProperties(props);
       setAnalyses(analysesData);
+      setUsers(usersData);
       setStats({
         totalProperties: props.length,
-        totalUsers: 1, // 简化处理
+        totalUsers: usersData.length || 1,
         totalAnalyses: analysesData.length,
-        activeUsers: 1,
+        activeUsers: usersData.length || 1,
       });
     } catch (err) {
       console.error('Failed to load data:', err);
@@ -332,10 +335,55 @@ export const AdminDashboard: React.FC = () => {
 
         {/* Users Tab */}
         {activeTab === 'users' && (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center">
-            <Users size={48} className="mx-auto text-slate-300 mb-4" />
-            <h3 className="text-lg font-bold mb-2">用户管理</h3>
-            <p className="text-slate-500">用户管理功能开发中...</p>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <h3 className="text-lg font-bold">用户管理</h3>
+              <span className="text-sm text-slate-500">共 {users.length} 个用户</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 dark:bg-slate-800/50">
+                  <tr>
+                    <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">ID</th>
+                    <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">用户名</th>
+                    <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">邮箱</th>
+                    <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">角色</th>
+                    <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">积分</th>
+                    <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">注册时间</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {users.map((user) => (
+                    <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td className="p-4 font-bold">{user.id}</td>
+                      <td className="p-4 font-bold">{user.username}</td>
+                      <td className="p-4 text-slate-500">{user.email}</td>
+                      <td className="p-4">
+                        <span className={cn(
+                          "text-xs font-bold px-2 py-1 rounded-full",
+                          user.role === 'admin' ? "bg-purple-500/10 text-purple-500" : "bg-slate-500/10 text-slate-500"
+                        )}>
+                          {user.role === 'admin' ? '管理员' : '用户'}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-primary font-bold">{user.points || 0}</span>
+                      </td>
+                      <td className="p-4 text-slate-400 text-sm">
+                        {user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                  {users.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-400">
+                        暂无用户数据
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

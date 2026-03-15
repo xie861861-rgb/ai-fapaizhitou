@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { LayoutDashboard, Clock, Star, ChevronRight, Search, Filter, ArrowUpRight, ShieldCheck } from 'lucide-react';
 import { Property } from '../types';
 import { cn } from '../lib/utils';
-import { api, Property as ApiProperty } from '../lib/api';
+import { api, Property as ApiProperty, isAuthenticated } from '../lib/api';
 
 interface WorkbenchProps {
   onSelectProperty: (property: Property) => void;
@@ -40,26 +40,51 @@ export const Workbench: React.FC<WorkbenchProps> = ({ onSelectProperty }) => {
   const [favorites, setFavorites] = useState<Property[]>([]);
   const [history, setHistory] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [allProperties, setAllProperties] = useState<Property[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    loadData();
+    checkAuth();
   }, []);
 
-  const loadData = async () => {
+  const checkAuth = () => {
+    const loggedIn = isAuthenticated();
+    setIsLoggedIn(loggedIn);
+    loadData(loggedIn);
+  };
+
+  const loadData = async (loggedIn: boolean) => {
     try {
       setLoading(true);
-      const [favData, histData] = await Promise.all([
-        api.getFavorites(),
-        api.getHistory(),
-      ]);
-      setFavorites(favData.map(convertProperty));
-      setHistory(histData.map(convertProperty));
+      
+      if (loggedIn) {
+        const [favData, histData] = await Promise.all([
+          api.getFavorites(),
+          api.getHistory(),
+        ]);
+        setFavorites(favData.map(convertProperty));
+        setHistory(histData.map(convertProperty));
+      } else {
+        setFavorites([]);
+        setHistory([]);
+      }
+      
+      const propsData = await api.getProperties({ limit: 20 });
+      setAllProperties(propsData.map(convertProperty));
     } catch (err) {
       console.error('Failed to load workbench data:', err);
     } finally {
       setLoading(false);
     }
   };
+
+  // 过滤房产
+  const filteredProperties = allProperties.filter(p => 
+    !searchQuery || 
+    p.title.includes(searchQuery) || 
+    p.location.includes(searchQuery)
+  );
 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-background-dark">
@@ -76,6 +101,8 @@ export const Workbench: React.FC<WorkbenchProps> = ({ onSelectProperty }) => {
               <input 
                 className="pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-2 focus:ring-primary transition-all w-64" 
                 placeholder="搜索房源地址、案号..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             <button className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-500 hover:text-primary transition-colors">

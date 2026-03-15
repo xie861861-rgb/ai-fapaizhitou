@@ -4,10 +4,26 @@ import { analyzeProperty } from '../services/ai.js';
 
 const router = Router();
 
+// Helper to get user ID from token
+function getUserId(req: Request): number | null {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return null;
+  
+  const token = authHeader.replace('Bearer ', '');
+  const user = dbGet('SELECT user_id FROM user_tokens WHERE token = ?', [token]);
+  
+  return user?.user_id || null;
+}
+
 // Create new analysis
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { propertyId, userId = 1 } = req.body;
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, error: '请先登录' });
+    }
+
+    const { propertyId } = req.body;
 
     // Get property data
     const property = dbGet('SELECT * FROM properties WHERE id = ?', [propertyId]);
@@ -89,7 +105,10 @@ router.get('/property/:propertyId', (req: Request, res: Response) => {
 // Get user analysis history
 router.get('/history', (req: Request, res: Response) => {
   try {
-    const userId = 1; // Demo user
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, error: '请先登录' });
+    }
 
     const analyses = dbAll(`
       SELECT a.*, p.title, p.location, p.images

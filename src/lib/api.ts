@@ -1,6 +1,6 @@
 // 用户认证 API 封装
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api';
 
 // Token 管理
 const TOKEN_KEY = 'ai_fapai_token';
