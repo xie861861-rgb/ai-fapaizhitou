@@ -29,10 +29,12 @@ app.use(express.static(path.join(__dirname, '../dist')));
 import propertiesRouter from './routes/properties.js';
 import usersRouter from './routes/users.js';
 import analysesRouter from './routes/analyses.js';
+import adminRouter from './routes/admin.js';
 
 app.use('/api/properties', propertiesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/analyses', analysesRouter);
+app.use('/api/admin', adminRouter);
 
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {

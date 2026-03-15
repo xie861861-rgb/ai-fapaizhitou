@@ -72,8 +72,20 @@ export async function initDatabase(): Promise<void> {
       role TEXT DEFAULT 'user' CHECK(role IN ('user', 'admin')),
       avatar TEXT,
       phone TEXT,
+      points INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  database.run(`
+    -- User tokens table
+    CREATE TABLE IF NOT EXISTS user_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      token TEXT UNIQUE NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
     );
   `);
 
@@ -152,6 +164,35 @@ export async function initDatabase(): Promise<void> {
       viewed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (property_id) REFERENCES properties(id)
+    );
+  `);
+
+  database.run(`
+    -- Recharge orders (充值订单)
+    CREATE TABLE IF NOT EXISTS recharge_orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      points INTEGER NOT NULL,
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'paid', 'cancelled')),
+      payment_method TEXT,
+      order_no TEXT UNIQUE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      paid_at DATETIME,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+  `);
+
+  database.run(`
+    -- Password reset codes (密码找回验证码)
+    CREATE TABLE IF NOT EXISTS password_reset_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      code TEXT NOT NULL,
+      expires_at DATETIME NOT NULL,
+      used INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
     );
   `);
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Wallet, History, Star, ChevronRight, Gift, Zap, ShieldCheck, CreditCard, CheckCircle2, User, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { api, User as UserType } from '../lib/api';
+import { api, User as UserType, getStoredUser } from '../lib/api';
 
 interface RechargePackage {
   id: string;
@@ -21,7 +21,7 @@ const PACKAGES: RechargePackage[] = [
 ];
 
 // 登录表单组件
-const LoginForm = ({ onSuccess, onSwitchToRegister }: { onSuccess: (user: UserType) => void; onSwitchToRegister: () => void }) => {
+const LoginForm = ({ onSuccess, onSwitchToRegister }: { onSuccess: (user: UserType, token: string) => void; onSwitchToRegister: () => void }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -34,7 +34,7 @@ const LoginForm = ({ onSuccess, onSwitchToRegister }: { onSuccess: (user: UserTy
     
     try {
       const result = await api.login(email, password);
-      onSuccess(result.user);
+      onSuccess(result.user, result.token);
     } catch (err: any) {
       setError(err.message || '登录失败');
     } finally {
@@ -110,7 +110,7 @@ const LoginForm = ({ onSuccess, onSwitchToRegister }: { onSuccess: (user: UserTy
 };
 
 // 注册表单组件
-const RegisterForm = ({ onSuccess, onSwitchToLogin }: { onSuccess: (user: UserType) => void; onSwitchToLogin: () => void }) => {
+const RegisterForm = ({ onSuccess, onSwitchToLogin }: { onSuccess: (user: UserType, token: string) => void; onSwitchToLogin: () => void }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -123,10 +123,10 @@ const RegisterForm = ({ onSuccess, onSwitchToLogin }: { onSuccess: (user: UserTy
     setError('');
     
     try {
-      const result = await api.register(username, email, password);
+      await api.register(username, email, password);
       // 注册成功后自动登录
       const loginResult = await api.login(email, password);
-      onSuccess(loginResult.user);
+      onSuccess(loginResult.user, loginResult.token);
     } catch (err: any) {
       setError(err.message || '注册失败');
     } finally {
@@ -215,26 +215,66 @@ const RegisterForm = ({ onSuccess, onSwitchToLogin }: { onSuccess: (user: UserTy
 
 export const MemberCenter: React.FC = () => {
   const [user, setUser] = useState<UserType | null>(null);
+  const [points, setPoints] = useState<number>(0);
+  const [orders, setOrders] = useState<any[]>([]);
   const [showAuth, setShowAuth] = useState<'login' | 'register' | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'recharge' | 'fission'>('profile');
+  const [loading, setLoading] = useState(true);
+  const [recharging, setRecharging] = useState(false);
+
+  const checkAuth = async () => {
+    try {
+      // 先检查本地存储的用户
+      const storedUser = getStoredUser();
+      if (storedUser) {
+        setUser(storedUser);
+      }
+      // 再从服务器获取最新信息
+      const userInfo = await api.getUserInfo();
+      setUser(userInfo);
+      // 获取积分和订单
+      const pointsData = await api.getPoints();
+      setPoints(pointsData.points);
+      setOrders(pointsData.orders || []);
+    } catch {
+      // 未登录
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 购买充值包
+  const handlePurchase = async (pkg: RechargePackage) => {
+    setRecharging(true);
+    try {
+      // 创建订单
+      const order = await api.createRechargeOrder(pkg.price, pkg.points);
+      // 模拟支付成功（实际应该跳转支付页面）
+      await fetch('http://localhost:3001/api/users/recharge/callback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderNo: order.order_no }),
+      });
+      // 刷新积分
+      await checkAuth();
+      alert(`充值成功！${pkg.points}积分已到账`);
+    } catch (err: any) {
+      alert(err.message || '充值失败');
+    } finally {
+      setRecharging(false);
+    }
+  };
 
   // 检查是否已登录
   useEffect(() => {
     checkAuth();
   }, []);
 
-  const checkAuth = async () => {
-    try {
-      const userInfo = await api.getUserInfo();
-      setUser(userInfo);
-    } catch {
-      // 未登录
-      setUser(null);
-    }
-  };
-
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await api.logout();
     setUser(null);
+    setPoints(0);
     setShowAuth('login');
   };
 
@@ -249,12 +289,18 @@ export const MemberCenter: React.FC = () => {
       <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-background-dark p-6">
         {showAuth === 'login' ? (
           <LoginForm 
-            onSuccess={(u) => setUser(u)} 
+            onSuccess={(u) => {
+              setUser(u);
+              checkAuth(); // 刷新用户信息
+            }} 
             onSwitchToRegister={() => setShowAuth('register')} 
           />
         ) : (
           <RegisterForm 
-            onSuccess={(u) => setUser(u)} 
+            onSuccess={(u) => {
+              setUser(u);
+              checkAuth(); // 刷新用户信息
+            }} 
             onSwitchToLogin={() => setShowAuth('login')} 
           />
         )}
@@ -290,11 +336,11 @@ export const MemberCenter: React.FC = () => {
           <div className="flex gap-4 w-full md:w-auto">
             <div className="flex-1 md:w-40 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 text-center">
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">积分余额</p>
-              <p className="text-2xl font-black text-primary">2450</p>
+              <p className="text-2xl font-black text-primary">{loading ? '...' : points.toLocaleString()}</p>
             </div>
             <div className="flex-1 md:w-40 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 text-center">
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">研判次数</p>
-              <p className="text-2xl font-black text-emerald-500">8</p>
+              <p className="text-2xl font-black text-emerald-500">{Math.floor(points / 100)}</p>
             </div>
           </div>
         </div>
@@ -412,17 +458,45 @@ export const MemberCenter: React.FC = () => {
                       <CheckCircle2 size={14} className="text-emerald-500" /> 可查看 {pkg.reports} 份报告
                     </li>
                   </ul>
-                  <button className={cn(
-                    "w-full mt-6 py-3 rounded-xl font-bold transition-all",
-                    pkg.popular 
-                      ? "bg-primary text-white shadow-lg shadow-primary/20 hover:bg-primary/90" 
-                      : "bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white"
-                  )}>
-                    立即购买
+                  <button 
+                    onClick={() => handlePurchase(pkg)}
+                    disabled={recharging}
+                    className={cn(
+                      "w-full mt-6 py-3 rounded-xl font-bold transition-all",
+                      pkg.popular 
+                        ? "bg-primary text-white shadow-lg shadow-primary/20 hover:bg-primary/90" 
+                        : "bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white",
+                      recharging && "opacity-50 cursor-not-allowed"
+                    )}
+                  >
+                    {recharging ? '处理中...' : '立即购买'}
                   </button>
                 </motion.div>
               ))}
             </div>
+
+            {/* 充值记录 */}
+            {orders.length > 0 && (
+              <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800">
+                <h4 className="text-lg font-bold mb-4">充值记录</h4>
+                <div className="space-y-3">
+                  {orders.map(order => (
+                    <div key={order.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                      <div>
+                        <p className="font-bold">¥{order.amount} → {order.points} 积分</p>
+                        <p className="text-xs text-slate-400">{order.created_at}</p>
+                      </div>
+                      <span className={cn(
+                        "px-3 py-1 rounded-full text-xs font-bold",
+                        order.status === 'paid' ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600"
+                      )}>
+                        {order.status === 'paid' ? '已支付' : '待支付'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -435,7 +509,7 @@ export const MemberCenter: React.FC = () => {
                 <input 
                   type="text" 
                   readOnly
-                  value="https://ai-fapaizhitou.com/invite?ref=user123"
+                  value={`https://ai-fapaizhitou.com/invite?ref=${user?.id || ''}`}
                   className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm"
                 />
                 <button className="px-6 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all">
