@@ -447,4 +447,42 @@ export const api = {
     if (!result.success) throw new Error(result.error);
     return result.data;
   },
+
+  // ==================== AI 对话 ====================
+  
+  async sendChatMessage(message: string, propertyId?: number) {
+    const token = getToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${API_BASE}/chat/chat`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ message, propertyId }),
+    });
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error);
+    return result.data;
+  },
+
+  async getChatHistory() {
+    const token = getToken();
+    const response = await fetch(`${API_BASE}/chat/history`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error);
+    return result.data;
+  },
+
+  async clearChatHistory() {
+    const token = getToken();
+    const response = await fetch(`${API_BASE}/chat/history`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error);
+  },
 };

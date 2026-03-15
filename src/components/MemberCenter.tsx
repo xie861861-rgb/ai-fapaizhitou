@@ -4,6 +4,13 @@ import { Wallet, History, Star, ChevronRight, Gift, Zap, ShieldCheck, CreditCard
 import { cn } from '../lib/utils';
 import { api, User as UserType, getStoredUser } from '../lib/api';
 
+interface ResetPasswordForm {
+  email: string;
+  code: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 interface RechargePackage {
   id: string;
   name: string;
@@ -99,12 +106,14 @@ const LoginForm = ({ onSuccess, onSwitchToRegister }: { onSuccess: (user: UserTy
         </button>
       </form>
 
-      <p className="text-center text-sm text-slate-500">
-        还没有账号？ 
+      <div className="flex justify-between text-sm">
         <button onClick={onSwitchToRegister} className="text-primary font-bold hover:underline">
           立即注册
         </button>
-      </p>
+        <button onClick={() => window.dispatchEvent(new CustomEvent('openForgotPassword'))} className="text-slate-400 hover:text-primary">
+          忘记密码？
+        </button>
+      </div>
     </motion.div>
   );
 };
@@ -213,11 +222,172 @@ const RegisterForm = ({ onSuccess, onSwitchToLogin }: { onSuccess: (user: UserTy
   );
 };
 
+// 忘记密码表单组件
+const ForgotPasswordForm = ({ onBack }: { onBack: () => void }) => {
+  const [step, setStep] = useState<'email' | 'code' | 'reset'>('email');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleSendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      await api.sendResetCode(email);
+      setSuccess('验证码已发送到您的邮箱');
+      setStep('code');
+    } catch (err: any) {
+      setError(err.message || '发送失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (newPassword !== confirmPassword) {
+      setError('两次密码输入不一致');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('密码至少6位');
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.resetPassword(email, code, newPassword);
+      setSuccess('密码重置成功！');
+      setTimeout(onBack, 2000);
+    } catch (err: any) {
+      setError(err.message || '重置失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-6"
+    >
+      <div className="text-center space-y-2">
+        <div className="size-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto text-primary">
+          <Zap size={32} />
+        </div>
+        <h2 className="text-2xl font-black">
+          {step === 'email' && '找回密码'}
+          {step === 'code' && '输入验证码'}
+          {step === 'reset' && '重置密码'}
+        </h2>
+        <p className="text-slate-500 text-sm">
+          {step === 'email' && '请输入注册邮箱'}
+          {step === 'code' && '请输入邮箱收到的验证码'}
+          {step === 'reset' && '设置您的新密码'}
+        </p>
+      </div>
+
+      {error && (
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-rose-500 font-bold text-center">
+          {error}
+        </motion.p>
+      )}
+      {success && (
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-green-500 font-bold text-center">
+          {success}
+        </motion.p>
+      )}
+
+      {step === 'email' && (
+        <form onSubmit={handleSendCode} className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">邮箱</label>
+            <input 
+              type="email" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary transition-all"
+              placeholder="your@email.com"
+              required
+            />
+          </div>
+          <button type="submit" disabled={loading} className="w-full bg-primary text-white py-4 rounded-xl font-black shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all disabled:opacity-50">
+            {loading ? '发送中...' : '发送验证码'}
+          </button>
+        </form>
+      )}
+
+      {step === 'code' && (
+        <form onSubmit={(e) => { e.preventDefault(); setStep('reset'); }} className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">验证码</label>
+            <input 
+              type="text" 
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary transition-all"
+              placeholder="6位验证码"
+              maxLength={6}
+              required
+            />
+          </div>
+          <button type="submit" className="w-full bg-primary text-white py-4 rounded-xl font-black shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all">
+            下一步
+          </button>
+        </form>
+      )}
+
+      {step === 'reset' && (
+        <form onSubmit={handleResetPassword} className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">新密码</label>
+            <input 
+              type="password" 
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary transition-all"
+              placeholder="至少6位"
+              minLength={6}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">确认密码</label>
+            <input 
+              type="password" 
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary transition-all"
+              placeholder="再次输入新密码"
+              required
+            />
+          </div>
+          <button type="submit" disabled={loading} className="w-full bg-primary text-white py-4 rounded-xl font-black shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all disabled:opacity-50">
+            {loading ? '处理中...' : '确认重置'}
+          </button>
+        </form>
+      )}
+
+      <p className="text-center text-sm text-slate-500">
+        <button onClick={onBack} className="text-primary font-bold hover:underline">
+          返回登录
+        </button>
+      </p>
+    </motion.div>
+  );
+};
+
 export const MemberCenter: React.FC = () => {
   const [user, setUser] = useState<UserType | null>(null);
   const [points, setPoints] = useState<number>(0);
   const [orders, setOrders] = useState<any[]>([]);
-  const [showAuth, setShowAuth] = useState<'login' | 'register' | null>(null);
+  const [showAuth, setShowAuth] = useState<'login' | 'register' | 'forgot' | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'recharge' | 'fission'>('profile');
   const [loading, setLoading] = useState(true);
   const [recharging, setRecharging] = useState(false);
@@ -269,6 +439,11 @@ export const MemberCenter: React.FC = () => {
   // 检查是否已登录
   useEffect(() => {
     checkAuth();
+    
+    // 监听忘记密码事件
+    const handleOpenForgotPassword = () => setShowAuth('forgot');
+    window.addEventListener('openForgotPassword', handleOpenForgotPassword);
+    return () => window.removeEventListener('openForgotPassword', handleOpenForgotPassword);
   }, []);
 
   const handleLogout = async () => {
@@ -295,6 +470,8 @@ export const MemberCenter: React.FC = () => {
             }} 
             onSwitchToRegister={() => setShowAuth('register')} 
           />
+        ) : showAuth === 'forgot' ? (
+          <ForgotPasswordForm onBack={() => setShowAuth('login')} />
         ) : (
           <RegisterForm 
             onSuccess={(u) => {
